@@ -1,6 +1,6 @@
-This code is derived from the book content "Build a Large Laguage model" by Sebastian Raschka, licensed under the MIT License.
+This code is derived from the book content "Build a Large Language Model" by Sebastian Raschka, licensed under the Apache License.
 
-The original code can be found at [Repository URL](https://github.com/rasbt/LLMs-from-scratch).
+The original code can be found at https://github.com/rasbt/LLMs-from-scratch.
 
 Modifications have been made to suit the needs of this project.
 
