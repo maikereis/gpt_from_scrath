@@ -26,7 +26,7 @@ def token_ids_to_text(token_ids, tokenizer):
     """
     Convert a tensor of token IDs back to a text string using the specified tokenizer.
 
-    This function removes the batch dimension from the tensor of token IDs and decodes 
+    This function removes the batch dimension from the tensor of token IDs and decodes
     it back into a human-readable text string.
 
     Parameters:

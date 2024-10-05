@@ -1,3 +1,5 @@
+pre-commit
+pre-commit-hooks
 notebook
 ipykernel
 requests

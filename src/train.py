@@ -18,7 +18,7 @@ def calc_loss_batch(input_batch, target_batch, model, device):
     - torch.Tensor: The computed loss as a scalar tensor.
     """
     model.eval()  # Ensure model is in evaluation mode
-    
+
     # Move tensors to the specified device
     input_batch = input_batch.to(device)
     target_batch = target_batch.to(device)
@@ -28,7 +28,7 @@ def calc_loss_batch(input_batch, target_batch, model, device):
 
     # Compute loss
     loss = torch.nn.functional.cross_entropy(
-        logits.view(-1, logits.size(-1)), 
+        logits.view(-1, logits.size(-1)),
         target_batch.view(-1)
     )
 
@@ -38,7 +38,7 @@ def calc_loss_loader(data_loader, model, device, num_batches=None):
     """
     Calculate the average loss over a specified number of batches from a data loader.
 
-    This function iterates through a data loader, computes the loss for each batch using 
+    This function iterates through a data loader, computes the loss for each batch using
     a given model, and returns the average loss. If the data loader is empty, it returns NaN.
 
     Parameters:
@@ -101,11 +101,11 @@ def log_training_evaluation(model, train_loader, val_loader, device, eval_iter, 
     """Logs training and validation losses."""
     train_loss, val_loss = evaluate_model(
         model, train_loader, val_loader, device, eval_iter)
-    
+
     metrics['train_losses'].append(train_loss)
     metrics['val_losses'].append(val_loss)
     metrics['tokens_seen'].append(tokens_seen)
-    
+
     print(f"Epoch {epoch + 1} (Step {global_step:06d}): "
           f"Train loss {train_loss:.3f}, Val loss {val_loss:.3f}")
 
@@ -114,8 +114,8 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
     """
     Train a model on the training dataset and evaluate it on the validation dataset.
 
-    This function performs the training of the specified model for a defined number of epochs, 
-    computes losses for both training and validation datasets, and logs relevant metrics. 
+    This function performs the training of the specified model for a defined number of epochs,
+    computes losses for both training and validation datasets, and logs relevant metrics.
     It also generates sample outputs after each epoch.
 
     Parameters:
@@ -139,7 +139,7 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
         'val_losses': [],
         'tokens_seen': [],
     }
-    
+
     tokens_seen = 0
     global_step = 0  # Initialize global step counter
 
@@ -152,13 +152,13 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
             loss = calc_loss_batch(input_batch, target_batch, model, device)
             loss.backward()  # Backpropagate to compute gradients
             optimizer.step()  # Update model weights
-            
+
             tokens_seen += input_batch.numel()
             global_step += 1
-            
+
             # Evaluate model periodically
             if global_step % eval_freq == 0:
-                log_training_evaluation(model, train_loader, val_loader, 
+                log_training_evaluation(model, train_loader, val_loader,
                                          device, eval_iter, metrics, tokens_seen, global_step, epoch)
 
         # Print a sample text after each epoch

@@ -11,7 +11,7 @@ def tokenizer():
 # Test the text_to_token_ids function on CPU
 def test_text_to_token_ids_cpu(tokenizer):
     text = "Hello, world!"
-    
+
     # Call text_to_token_ids
     result = text_to_token_ids(text, tokenizer)
 
@@ -24,7 +24,7 @@ def test_text_to_token_ids_cpu(tokenizer):
 # Test the text_to_token_ids function on GPU if available
 def test_text_to_token_ids_gpu(tokenizer):
     text = "Hello, world!"
-    
+
     if torch.cuda.is_available():
         device = torch.device("cuda")
 
@@ -40,7 +40,7 @@ def test_text_to_token_ids_gpu(tokenizer):
 # Test the token_ids_to_text function
 def test_token_ids_to_text(tokenizer):
     text = "Hello, world!"
-    
+
     # Create tensor (simulating output from model)
     encoded_ids = tokenizer.encode(text)
     token_ids = torch.tensor([encoded_ids])
@@ -53,7 +53,7 @@ def test_token_ids_to_text(tokenizer):
 # Test both functions in sequence (text_to_token_ids -> token_ids_to_text)
 def test_text_to_token_ids_then_token_ids_to_text(tokenizer):
     text = "Hello, world!"
-    
+
     # Step 1: Tokenize the text to tensor
     token_ids = text_to_token_ids(text, tokenizer)
 

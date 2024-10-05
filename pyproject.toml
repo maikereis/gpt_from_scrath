@@ -9,5 +9,3 @@ requires-python = ">= 3.10"
 
 [tool.setuptools]
 packages = ["src"]
-
-

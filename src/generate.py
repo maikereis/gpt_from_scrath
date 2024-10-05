@@ -4,7 +4,7 @@ import torch
 def get_logits(model, idx, context_size):
     """
     Get the logits from the model for the last time step of the input sequence.
-    
+
     Parameters:
     - model (nn.Module): The model to use for generating logits.
     - idx (torch.Tensor): The input tensor containing token indices.
@@ -21,7 +21,7 @@ def get_logits(model, idx, context_size):
 def filter_logits(logits, top_k):
     """
     Apply top-k filtering to the logits.
-    
+
     Parameters:
     - logits (torch.Tensor): The logits to filter.
     - top_k (int): The number of top logits to keep.
@@ -38,7 +38,7 @@ def filter_logits(logits, top_k):
 def sample_next_token(logits, temperature, eos_id):
     """
     Sample the next token based on the logits and temperature settings.
-    
+
     Parameters:
     - logits (torch.Tensor): The logits from which to sample.
     - temperature (float): The temperature for scaling logits.
@@ -60,8 +60,8 @@ def sample_next_token(logits, temperature, eos_id):
 def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=None, eos_id=None):
     """
     Generate a sequence of tokens using the provided model.
-    
-    This function orchestrates the generation process, calling the necessary 
+
+    This function orchestrates the generation process, calling the necessary
     helper functions to get logits, filter them, and sample the next token.
 
     Parameters are the same as previously defined.
@@ -69,7 +69,7 @@ def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=No
     Returns:
     - torch.Tensor: A tensor containing the input tokens followed by the generated tokens.
     """
-    
+
     if idx.size(0) == 0:
         raise ValueError("Input batch size cannot be zero.")
 
