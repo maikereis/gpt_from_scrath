@@ -94,7 +94,7 @@ class TransformerDecoder(nn.Module):
 
     def forward(self, x):
 
-        shortcut = x.clone()
+        shortcut = x
 
         x = self.norm_layer1(x)
         x = self.multi_head_attention(x)
@@ -102,6 +102,8 @@ class TransformerDecoder(nn.Module):
         x = (
             x + shortcut
         )  # adds shortcut, helps to mitigate the vanishing gradient problem
+
+        shortcut = x
 
         x = self.norm_layer2(x)
         x = self.feed_foward(x)
