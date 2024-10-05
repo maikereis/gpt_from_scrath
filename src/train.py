@@ -141,7 +141,7 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
     }
 
     tokens_seen = 0
-    global_step = 0  # Initialize global step counter
+    global_step = -1 # Initialize global step counter
 
     # Main training loop
     for epoch in range(num_epochs):
