@@ -2,3 +2,4 @@ notebook
 ipykernel
 requests
 torch
+transformers
