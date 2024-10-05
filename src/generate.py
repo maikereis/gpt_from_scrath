@@ -69,6 +69,10 @@ def generate(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=No
     Returns:
     - torch.Tensor: A tensor containing the input tokens followed by the generated tokens.
     """
+    
+    if idx.size(0) == 0:
+        raise ValueError("Input batch size cannot be zero.")
+
     for _ in range(max_new_tokens):
         logits = get_logits(model, idx, context_size)  # Get logits
         if top_k is not None:

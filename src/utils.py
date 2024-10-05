@@ -23,6 +23,9 @@ def generate_sequence(model, idx, max_new_tokens, context_size):
                     context with the newly generated tokens appended.
     """
     model.eval()  # Switch to evaluation mode once
+
+    if idx.size(0) == 0:
+        raise ValueError("Input batch size cannot be zero.")
     
     for _ in range(max_new_tokens):
         logits = get_logits(model, idx, context_size)
