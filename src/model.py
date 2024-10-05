@@ -1,6 +1,12 @@
 import torch
 import torch.nn as nn
 
+MODEL_ARCHITECTURES = {
+    "gpt2-small": {"emb_dim": 768, "n_layers": 12, "n_heads": 12}, #  (124M)
+    "gpt2-medium": {"emb_dim": 1024, "n_layers": 24, "n_heads": 16}, #  (355M)
+    "gpt2-large": {"emb_dim": 1280, "n_layers": 36, "n_heads": 20}, #  (774M)
+    "gpt2-xl": {"emb_dim": 1600, "n_layers": 48, "n_heads": 25}, #  (1558M)
+}
 
 class FeedForward(nn.Module):
     def __init__(self, cfg):

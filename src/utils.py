@@ -1,6 +1,6 @@
 import torch
 from src.token import token_ids_to_text, text_to_token_ids
-from src.utils import get_logits
+from src.generate import get_logits
 
 @torch.no_grad()  # Apply no_grad as a decorator
 def generate_sequence(model, idx, max_new_tokens, context_size):
