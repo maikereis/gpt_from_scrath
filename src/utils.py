@@ -69,3 +69,74 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
     # Decode and print the text
     decoded_text = token_ids_to_text(token_ids, tokenizer)
     print(decoded_text.replace("\n", " "))  # Compact print format
+
+
+def __assign_check(left, right):
+    """
+    Checks if the shapes of two tensors match and assigns the right tensor to a new parameter if they do.
+
+    This function compares the shapes of two tensors. If the shapes match, it creates a new
+    parameter from the right tensor. If the shapes do not match, it raises a ValueError.
+
+    Parameters:
+    - left (torch.Tensor): The first tensor to compare.
+    - right (torch.Tensor): The second tensor to compare and assign.
+
+    Returns:
+    - torch.nn.Parameter: A new parameter containing a detached clone of the right tensor.
+
+    Raises:
+    - ValueError: If the shapes of the two tensors do not match.
+    """
+    if left.shape != right.shape:
+        raise ValueError(f"Shape mismatch. Left: {left.shape}, Right: {right.shape}")
+    return torch.nn.Parameter(right.clone().detach())
+
+def load_weights(gpt, gpt_hf, model_configs):
+    """
+    Load weights from a Hugging Face GPT model into a custom GPT model.
+
+    This function transfers the weights from a pre-trained Hugging Face GPT model to a custom GPT model,
+    ensuring that the shapes of the weights match and assigning them appropriately.
+
+    Parameters:
+    - gpt (torch.nn.Module): The custom GPT model to which the weights will be assigned.
+    - gpt_hf (torch.nn.Module): The pre-trained Hugging Face GPT model from which the weights will be loaded.
+    - model_configs (dict): A dictionary containing the model configuration, including the number of layers.
+
+    Returns:
+    - None
+    """
+    d = gpt_hf.state_dict()
+
+    gpt.pos_emb.weight = __assign_check(gpt.pos_emb.weight, d["wpe.weight"])
+    gpt.tok_emb.weight = __assign_check(gpt.tok_emb.weight, d["wte.weight"])
+
+    for b in range(model_configs["n_layers"]):
+        q_w, k_w, v_w = torch.split(d[f"h.{b}.attn.c_attn.weight"], d[f"h.{b}.attn.c_attn.weight"].size(-1) // 3, dim=-1)
+        gpt.transformer_decoders[b].multi_head_attention.W_query.weight = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_query.weight, q_w.T)
+        gpt.transformer_decoders[b].multi_head_attention.W_key.weight = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_key.weight, k_w.T)
+        gpt.transformer_decoders[b].multi_head_attention.W_value.weight = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_value.weight, v_w.T)
+
+        q_b, k_b, v_b = torch.split(d[f"h.{b}.attn.c_attn.bias"], d[f"h.{b}.attn.c_attn.bias"].size(-1) // 3, dim=-1)
+        gpt.transformer_decoders[b].multi_head_attention.W_query.bias = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_query.bias, q_b)
+        gpt.transformer_decoders[b].multi_head_attention.W_key.bias = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_key.bias, k_b)
+        gpt.transformer_decoders[b].multi_head_attention.W_value.bias = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_value.bias, v_b)
+
+        gpt.transformer_decoders[b].multi_head_attention.out_proj.weight = __assign_check(gpt.transformer_decoders[b].multi_head_attention.out_proj.weight, d[f"h.{b}.attn.c_proj.weight"].T)
+        gpt.transformer_decoders[b].multi_head_attention.out_proj.bias = __assign_check(gpt.transformer_decoders[b].multi_head_attention.out_proj.bias, d[f"h.{b}.attn.c_proj.bias"])
+
+        gpt.transformer_decoders[b].feed_foward.layers[0].weight = __assign_check(gpt.transformer_decoders[b].feed_foward.layers[0].weight, d[f"h.{b}.mlp.c_fc.weight"].T)
+        gpt.transformer_decoders[b].feed_foward.layers[0].bias = __assign_check(gpt.transformer_decoders[b].feed_foward.layers[0].bias, d[f"h.{b}.mlp.c_fc.bias"])
+        gpt.transformer_decoders[b].feed_foward.layers[2].weight = __assign_check(gpt.transformer_decoders[b].feed_foward.layers[2].weight, d[f"h.{b}.mlp.c_proj.weight"].T)
+        gpt.transformer_decoders[b].feed_foward.layers[2].bias = __assign_check(gpt.transformer_decoders[b].feed_foward.layers[2].bias, d[f"h.{b}.mlp.c_proj.bias"])
+
+        gpt.transformer_decoders[b].norm_layer1.weight = __assign_check(gpt.transformer_decoders[b].norm_layer1.weight, d[f"h.{b}.ln_1.weight"])
+        gpt.transformer_decoders[b].norm_layer1.bias = __assign_check(gpt.transformer_decoders[b].norm_layer1.bias, d[f"h.{b}.ln_1.bias"])
+
+        gpt.transformer_decoders[b].norm_layer2.weight = __assign_check(gpt.transformer_decoders[b].norm_layer2.weight, d[f"h.{b}.ln_2.weight"])
+        gpt.transformer_decoders[b].norm_layer2.bias = __assign_check(gpt.transformer_decoders[b].norm_layer2.bias, d[f"h.{b}.ln_2.bias"])
+
+        gpt.final_norm.weight = __assign_check(gpt.final_norm.weight, d[f"ln_f.weight"])
+        gpt.final_norm.bias = __assign_check(gpt.final_norm.bias, d[f"ln_f.bias"])
+        gpt.out.weight = __assign_check(gpt.out.weight, d["wte.weight"])
