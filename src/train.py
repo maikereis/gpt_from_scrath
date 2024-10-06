@@ -131,7 +131,9 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
     - tokenizer: The tokenizer used to convert text to tokens and vice versa.
 
     Returns:
-    - dict: A dictionary containing lists of training losses, validation losses, and tokens seen.
+    - train_losses: list of training losses.
+    - val_losses: list of validation losses.
+    - tokens_seen: list of tokens seen.
     """
     # Initialize a dictionary to track losses and tokens seen
     metrics = {
@@ -164,4 +166,4 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
         # Print a sample text after each epoch
         generate_and_print_sample(model, tokenizer, device, start_context)
 
-    return metrics
+    return metrics['train_losses'], metrics['val_losses'], metrics['tokens_seen']
