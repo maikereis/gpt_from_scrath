@@ -104,7 +104,6 @@ def log_training_evaluation(model, train_loader, val_loader, device, eval_iter, 
 
     metrics['train_losses'].append(train_loss)
     metrics['val_losses'].append(val_loss)
-    metrics['tokens_seen'].append(tokens_seen)
 
     print(f"Epoch {epoch + 1} (Step {global_step:06d}): "
           f"Train loss {train_loss:.3f}, Val loss {val_loss:.3f}")
@@ -139,7 +138,6 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
     metrics = {
         'train_losses': [],
         'val_losses': [],
-        'tokens_seen': [],
     }
 
     tokens_seen = 0
@@ -166,4 +164,4 @@ def train_model_simple(model, train_loader, val_loader, optimizer, device, num_e
         # Print a sample text after each epoch
         generate_and_print_sample(model, tokenizer, device, start_context)
 
-    return metrics['train_losses'], metrics['val_losses'], metrics['tokens_seen']
+    return metrics['train_losses'], metrics['val_losses'], tokens_seen
