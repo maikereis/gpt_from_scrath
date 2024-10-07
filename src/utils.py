@@ -1,6 +1,8 @@
 import torch
+from collections import Counter
 from src.token import token_ids_to_text, text_to_token_ids
 from src.generate import get_logits
+
 
 @torch.no_grad()  # Apply no_grad as a decorator
 def generate_sequence(model, idx, max_new_tokens, context_size):
@@ -38,6 +40,7 @@ def generate_sequence(model, idx, max_new_tokens, context_size):
 
     return idx
 
+
 def generate_and_print_sample(model, tokenizer, device, start_context):
     """
     Generate a sample of text from a language model and print it.
@@ -62,8 +65,7 @@ def generate_and_print_sample(model, tokenizer, device, start_context):
 
     # Generate text (no_grad is already handled in generate_text_simple)
     token_ids = generate_sequence(
-        model=model, idx=encoded,
-        max_new_tokens=50, context_size=context_size
+        model=model, idx=encoded, max_new_tokens=50, context_size=context_size
     )
 
     # Decode and print the text
@@ -92,6 +94,7 @@ def __assign_check(left, right):
         raise ValueError(f"Shape mismatch. Left: {left.shape}, Right: {right.shape}")
     return torch.nn.Parameter(right.clone().detach())
 
+
 def load_weights(gpt, gpt_hf, model_configs):
     """
     Load weights from a Hugging Face GPT model into a custom GPT model.
@@ -113,30 +116,117 @@ def load_weights(gpt, gpt_hf, model_configs):
     gpt.tok_emb.weight = __assign_check(gpt.tok_emb.weight, d["wte.weight"])
 
     for b in range(model_configs["n_layers"]):
-        q_w, k_w, v_w = torch.split(d[f"h.{b}.attn.c_attn.weight"], d[f"h.{b}.attn.c_attn.weight"].size(-1) // 3, dim=-1)
-        gpt.transformer_decoders[b].multi_head_attention.W_query.weight = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_query.weight, q_w.T)
-        gpt.transformer_decoders[b].multi_head_attention.W_key.weight = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_key.weight, k_w.T)
-        gpt.transformer_decoders[b].multi_head_attention.W_value.weight = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_value.weight, v_w.T)
+        q_w, k_w, v_w = torch.split(
+            d[f"h.{b}.attn.c_attn.weight"],
+            d[f"h.{b}.attn.c_attn.weight"].size(-1) // 3,
+            dim=-1,
+        )
+        gpt.transformer_decoders[b].multi_head_attention.W_query.weight = (
+            __assign_check(
+                gpt.transformer_decoders[b].multi_head_attention.W_query.weight, q_w.T
+            )
+        )
+        gpt.transformer_decoders[b].multi_head_attention.W_key.weight = __assign_check(
+            gpt.transformer_decoders[b].multi_head_attention.W_key.weight, k_w.T
+        )
+        gpt.transformer_decoders[b].multi_head_attention.W_value.weight = (
+            __assign_check(
+                gpt.transformer_decoders[b].multi_head_attention.W_value.weight, v_w.T
+            )
+        )
 
-        q_b, k_b, v_b = torch.split(d[f"h.{b}.attn.c_attn.bias"], d[f"h.{b}.attn.c_attn.bias"].size(-1) // 3, dim=-1)
-        gpt.transformer_decoders[b].multi_head_attention.W_query.bias = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_query.bias, q_b)
-        gpt.transformer_decoders[b].multi_head_attention.W_key.bias = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_key.bias, k_b)
-        gpt.transformer_decoders[b].multi_head_attention.W_value.bias = __assign_check(gpt.transformer_decoders[b].multi_head_attention.W_value.bias, v_b)
+        q_b, k_b, v_b = torch.split(
+            d[f"h.{b}.attn.c_attn.bias"],
+            d[f"h.{b}.attn.c_attn.bias"].size(-1) // 3,
+            dim=-1,
+        )
+        gpt.transformer_decoders[b].multi_head_attention.W_query.bias = __assign_check(
+            gpt.transformer_decoders[b].multi_head_attention.W_query.bias, q_b
+        )
+        gpt.transformer_decoders[b].multi_head_attention.W_key.bias = __assign_check(
+            gpt.transformer_decoders[b].multi_head_attention.W_key.bias, k_b
+        )
+        gpt.transformer_decoders[b].multi_head_attention.W_value.bias = __assign_check(
+            gpt.transformer_decoders[b].multi_head_attention.W_value.bias, v_b
+        )
 
-        gpt.transformer_decoders[b].multi_head_attention.out_proj.weight = __assign_check(gpt.transformer_decoders[b].multi_head_attention.out_proj.weight, d[f"h.{b}.attn.c_proj.weight"].T)
-        gpt.transformer_decoders[b].multi_head_attention.out_proj.bias = __assign_check(gpt.transformer_decoders[b].multi_head_attention.out_proj.bias, d[f"h.{b}.attn.c_proj.bias"])
+        gpt.transformer_decoders[b].multi_head_attention.out_proj.weight = (
+            __assign_check(
+                gpt.transformer_decoders[b].multi_head_attention.out_proj.weight,
+                d[f"h.{b}.attn.c_proj.weight"].T,
+            )
+        )
+        gpt.transformer_decoders[b].multi_head_attention.out_proj.bias = __assign_check(
+            gpt.transformer_decoders[b].multi_head_attention.out_proj.bias,
+            d[f"h.{b}.attn.c_proj.bias"],
+        )
 
-        gpt.transformer_decoders[b].feed_foward.layers[0].weight = __assign_check(gpt.transformer_decoders[b].feed_foward.layers[0].weight, d[f"h.{b}.mlp.c_fc.weight"].T)
-        gpt.transformer_decoders[b].feed_foward.layers[0].bias = __assign_check(gpt.transformer_decoders[b].feed_foward.layers[0].bias, d[f"h.{b}.mlp.c_fc.bias"])
-        gpt.transformer_decoders[b].feed_foward.layers[2].weight = __assign_check(gpt.transformer_decoders[b].feed_foward.layers[2].weight, d[f"h.{b}.mlp.c_proj.weight"].T)
-        gpt.transformer_decoders[b].feed_foward.layers[2].bias = __assign_check(gpt.transformer_decoders[b].feed_foward.layers[2].bias, d[f"h.{b}.mlp.c_proj.bias"])
+        gpt.transformer_decoders[b].feed_foward.layers[0].weight = __assign_check(
+            gpt.transformer_decoders[b].feed_foward.layers[0].weight,
+            d[f"h.{b}.mlp.c_fc.weight"].T,
+        )
+        gpt.transformer_decoders[b].feed_foward.layers[0].bias = __assign_check(
+            gpt.transformer_decoders[b].feed_foward.layers[0].bias,
+            d[f"h.{b}.mlp.c_fc.bias"],
+        )
+        gpt.transformer_decoders[b].feed_foward.layers[2].weight = __assign_check(
+            gpt.transformer_decoders[b].feed_foward.layers[2].weight,
+            d[f"h.{b}.mlp.c_proj.weight"].T,
+        )
+        gpt.transformer_decoders[b].feed_foward.layers[2].bias = __assign_check(
+            gpt.transformer_decoders[b].feed_foward.layers[2].bias,
+            d[f"h.{b}.mlp.c_proj.bias"],
+        )
 
-        gpt.transformer_decoders[b].norm_layer1.weight = __assign_check(gpt.transformer_decoders[b].norm_layer1.weight, d[f"h.{b}.ln_1.weight"])
-        gpt.transformer_decoders[b].norm_layer1.bias = __assign_check(gpt.transformer_decoders[b].norm_layer1.bias, d[f"h.{b}.ln_1.bias"])
+        gpt.transformer_decoders[b].norm_layer1.weight = __assign_check(
+            gpt.transformer_decoders[b].norm_layer1.weight, d[f"h.{b}.ln_1.weight"]
+        )
+        gpt.transformer_decoders[b].norm_layer1.bias = __assign_check(
+            gpt.transformer_decoders[b].norm_layer1.bias, d[f"h.{b}.ln_1.bias"]
+        )
 
-        gpt.transformer_decoders[b].norm_layer2.weight = __assign_check(gpt.transformer_decoders[b].norm_layer2.weight, d[f"h.{b}.ln_2.weight"])
-        gpt.transformer_decoders[b].norm_layer2.bias = __assign_check(gpt.transformer_decoders[b].norm_layer2.bias, d[f"h.{b}.ln_2.bias"])
+        gpt.transformer_decoders[b].norm_layer2.weight = __assign_check(
+            gpt.transformer_decoders[b].norm_layer2.weight, d[f"h.{b}.ln_2.weight"]
+        )
+        gpt.transformer_decoders[b].norm_layer2.bias = __assign_check(
+            gpt.transformer_decoders[b].norm_layer2.bias, d[f"h.{b}.ln_2.bias"]
+        )
 
         gpt.final_norm.weight = __assign_check(gpt.final_norm.weight, d[f"ln_f.weight"])
         gpt.final_norm.bias = __assign_check(gpt.final_norm.bias, d[f"ln_f.bias"])
         gpt.out.weight = __assign_check(gpt.out.weight, d["wte.weight"])
+
+
+def value_counts(data_loader, normalize=False):
+    """
+    Count the occurrences of each label in a PyTorch DataLoader, similar to pd.value_counts().
+
+    Args:
+        data_loader (DataLoader): A PyTorch DataLoader instance.
+        normalize (bool): If True, return the relative frequencies of the labels. Default is False.
+
+    Returns:
+        dict: A dictionary with label counts or relative frequencies (if normalize=True), sorted by label.
+    """
+    label_counts = Counter()
+
+    total_samples = 0  # To calculate relative frequencies if normalize=True
+
+    # Iterate through the DataLoader
+    for batch in data_loader:
+        _, labels = batch  # We only care about the labels (input_ids, labels)
+
+        # Update the Counter with the labels
+        label_counts.update(labels.tolist())
+        total_samples += labels.size(0)  # Update total sample count
+
+    # If normalize=True, convert counts to relative frequencies
+    if normalize:
+        label_counts = {
+            label: count / total_samples for label, count in label_counts.items()
+        }
+
+    # Sort by label (for consistency with pd.value_counts())
+    label_counts = dict(sorted(label_counts.items()))
+
+    return label_counts

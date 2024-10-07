@@ -1,6 +1,6 @@
 import torch
 from utils import generate_and_print_sample
-
+from torcheval.metrics.functional import binary_precision
 
 def calc_loss_batch(input_batch, target_batch, model, device):
     """
@@ -123,12 +123,10 @@ def calc_accuracy_loader(data_loader, model, device, num_batches=None):
 
     return correct_predictions / num_examples if num_examples > 0 else 0.0
 
-
 def calc_precision_loader(data_loader, model, device, num_batches=None):
     model.eval()
-    true_positives = 0
-    false_positives = 0
-    false_negatives = 0
+    y_true = []
+    y_pred = []
 
     if num_batches is None:
         num_batches = len(data_loader)
@@ -144,25 +142,16 @@ def calc_precision_loader(data_loader, model, device, num_batches=None):
                 logits = model(input_batch)[:, -1, :]  # Get logits
             predicted_labels = torch.argmax(logits, dim=-1)  # Predicted classes
 
-            # Count True Positives, False Positives, and False Negatives
-            true_positives += (
-                ((predicted_labels == 1) & (target_batch == 1)).sum().item()
-            )  # TP
-            false_positives += (
-                ((predicted_labels == 1) & (target_batch == 0)).sum().item()
-            )  # FP
-            false_negatives += (
-                ((predicted_labels == 0) & (target_batch == 1)).sum().item()
-            )  # FN
+            y_pred.append(predicted_labels)
+            y_true.append(target_batch)
         else:
             break
 
+    y_true = torch.cat(y_true)
+    y_pred = torch.cat(y_pred)
+
     # Calculate precision
-    precision = (
-        true_positives / (true_positives + false_positives)
-        if (true_positives + false_positives) > 0
-        else 0.0
-    )
+    precision = binary_precision(y_true, y_pred).item()
 
     return precision
 
@@ -185,8 +174,6 @@ def log_training_evaluation(
 
     metrics["train_losses"].append(train_loss)
     metrics["val_losses"].append(val_loss)
-    metrics["examples_seen"].append(examples_seen)
-
 
     print(
         f"Epoch {epoch + 1} (Step {global_step:06d}): "
@@ -199,7 +186,8 @@ def train_classifier_simple(
     metrics = {
         "train_losses": [],
         "val_losses": [],
-        "examples_seen": [],
+        "train_precision": [],
+        "val_precision": [],
     }
 
     examples_seen = 0
@@ -230,9 +218,14 @@ def train_classifier_simple(
                     epoch,
                 )
 
-        train_precision = calc_precision_loader(train_loader, model, device, num_batches = eval_iter )
-        val_precision = calc_precision_loader(val_loader, model, device, num_batches = eval_iter )
+        train_precision = calc_precision_loader(train_loader, model, device, num_batches = eval_iter)
+        val_precision = calc_precision_loader(val_loader, model, device, num_batches = eval_iter)
+
+        metrics['train_precision'].append(train_precision)
+        metrics['val_precision'].append(val_precision)
+
         print(f"Training precision: {train_precision * 100:.2f}% | ", end ="")
         print(f"Validation precision: {val_precision * 100:.2f}%")
 
-    return metrics
+
+    return metrics['train_losses'], metrics["val_losses"], metrics['train_precision'], metrics['val_precision'], examples_seen
