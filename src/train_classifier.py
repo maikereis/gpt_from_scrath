@@ -18,8 +18,6 @@ def calc_loss_batch(input_batch, target_batch, model, device):
     Returns:
     - torch.Tensor: The computed loss as a scalar tensor.
     """
-    model.eval()  # Ensure model is in evaluation mode
-
     # Move tensors to the specified device
     input_batch = input_batch.to(device)
     target_batch = target_batch.to(device)
@@ -29,7 +27,6 @@ def calc_loss_batch(input_batch, target_batch, model, device):
 
     # Compute loss
     loss = torch.nn.functional.cross_entropy(logits, target_batch)
-
     return loss
 
 
@@ -49,30 +46,22 @@ def calc_loss_loader(data_loader, model, device, num_batches=None):
     Returns:
     - float: The average loss over the processed batches. Returns NaN if the data loader is empty.
     """
-    total_loss = 0.0
-
-    data_loader_length = len(data_loader)  # Store the length of the data loader
-
-    if data_loader_length == 0:
+    total_loss = 0.
+    if len(data_loader) == 0:
         return float("nan")
-
-    # Determine the number of batches to process
-    num_batches = num_batches if num_batches is not None else data_loader_length
-    num_batches = min(num_batches, data_loader_length)
-
-    # Iterate through the data loader
+    elif num_batches is None:
+        num_batches = len(data_loader)
+    else:
+        num_batches = min(num_batches, len(data_loader))
     for i, (input_batch, target_batch) in enumerate(data_loader):
         if i < num_batches:
             loss = calc_loss_batch(input_batch, target_batch, model, device)
-            total_loss += loss.item()  # Accumulate loss
+            total_loss += loss.item()
         else:
             break
-
-    # Return average loss over the number of batches processed
     return total_loss / num_batches
 
 
-@torch.no_grad()
 def evaluate_model(model, train_loader, val_loader, device, eval_iter):
     """
     Evaluate the model on training and validation datasets.
@@ -92,8 +81,9 @@ def evaluate_model(model, train_loader, val_loader, device, eval_iter):
     - tuple: A tuple containing the average training loss and average validation loss.
     """
     model.eval()
-    train_loss = calc_loss_loader(train_loader, model, device, num_batches=eval_iter)
-    val_loss = calc_loss_loader(val_loader, model, device, num_batches=eval_iter)
+    with torch.no_grad():
+        train_loss = calc_loss_loader(train_loader, model, device, num_batches=eval_iter)
+        val_loss = calc_loss_loader(val_loader, model, device, num_batches=eval_iter)
     model.train()
     return train_loss, val_loss
 
@@ -125,8 +115,7 @@ def calc_accuracy_loader(data_loader, model, device, num_batches=None):
 
 def calc_precision_loader(data_loader, model, device, num_batches=None):
     model.eval()
-    y_true = []
-    y_pred = []
+    true_positives, false_positives = 0, 0
 
     if num_batches is None:
         num_batches = len(data_loader)
@@ -142,17 +131,13 @@ def calc_precision_loader(data_loader, model, device, num_batches=None):
                 logits = model(input_batch)[:, -1, :]  # Get logits
             predicted_labels = torch.argmax(logits, dim=-1)  # Predicted classes
 
-            y_pred.append(predicted_labels)
-            y_true.append(target_batch)
+
+            true_positives += ((predicted_labels == 1) & (target_batch == 1)).sum().item()
+            false_positives += ((predicted_labels == 1) & (target_batch == 0)).sum().item()
         else:
             break
 
-    y_true = torch.cat(y_true)
-    y_pred = torch.cat(y_pred)
-
-    # Calculate precision
-    precision = binary_precision(y_true, y_pred).item()
-
+    precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0.0
     return precision
 
 
@@ -180,52 +165,39 @@ def log_training_evaluation(
         f"Train loss {train_loss:.3f}, Val loss {val_loss:.3f}"
     )
 
-def train_classifier_simple(
-    model, train_loader, val_loader, optimizer, device, num_epochs, eval_freq, eval_iter
-):
-    metrics = {
-        "train_losses": [],
-        "val_losses": [],
-        "train_precision": [],
-        "val_precision": [],
-    }
+def train_classifier_simple(model, train_loader, val_loader, optimizer, device, num_epochs,
+                            eval_freq, eval_iter, tokenizer):
+    # Initialize lists to track losses and tokens seen
+    train_losses, val_losses, train_accs, val_accs = [], [], [], []
+    examples_seen, global_step = 0, -1
 
-    examples_seen = 0
-    global_step = -1  # Initialize global step counter
-
+    # Main training loop
     for epoch in range(num_epochs):
         model.train()  # Set model to training mode
 
         for input_batch, target_batch in train_loader:
-            optimizer.zero_grad()  # Reset gradients for the optimizer
+            optimizer.zero_grad()  # Reset loss gradients from previous batch iteration
             loss = calc_loss_batch(input_batch, target_batch, model, device)
-            loss.backward()  # Backpropagate to compute gradients
-            optimizer.step()  # Update model weights
-
-            examples_seen += input_batch.shape[0]
+            loss.backward()  # Calculate loss gradients
+            optimizer.step()  # Update model weights using loss gradients
+            examples_seen += input_batch.shape[0]  # New: track examples instead of tokens
             global_step += 1
 
+            # Optional evaluation step
             if global_step % eval_freq == 0:
-                log_training_evaluation(
-                    model,
-                    train_loader,
-                    val_loader,
-                    device,
-                    eval_iter,
-                    metrics,
-                    examples_seen,
-                    global_step,
-                    epoch,
-                )
+                train_loss, val_loss = evaluate_model(
+                    model, train_loader, val_loader, device, eval_iter)
+                train_losses.append(train_loss)
+                val_losses.append(val_loss)
+                print(f"Ep {epoch+1} (Step {global_step:06d}): "
+                      f"Train loss {train_loss:.3f}, Val loss {val_loss:.3f}")
 
-        train_precision = calc_precision_loader(train_loader, model, device, num_batches = eval_iter)
-        val_precision = calc_precision_loader(val_loader, model, device, num_batches = eval_iter)
+        # Calculate accuracy after each epoch
+        train_accuracy = calc_accuracy_loader(train_loader, model, device, num_batches=eval_iter)
+        val_accuracy = calc_accuracy_loader(val_loader, model, device, num_batches=eval_iter)
+        print(f"Training accuracy: {train_accuracy*100:.2f}% | ", end="")
+        print(f"Validation accuracy: {val_accuracy*100:.2f}%")
+        train_accs.append(train_accuracy)
+        val_accs.append(val_accuracy)
 
-        metrics['train_precision'].append(train_precision)
-        metrics['val_precision'].append(val_precision)
-
-        print(f"Training precision: {train_precision * 100:.2f}% | ", end ="")
-        print(f"Validation precision: {val_precision * 100:.2f}%")
-
-
-    return metrics['train_losses'], metrics["val_losses"], metrics['train_precision'], metrics['val_precision'], examples_seen
+    return train_losses, val_losses, train_accs, val_accs, examples_seen

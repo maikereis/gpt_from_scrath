@@ -1,4 +1,5 @@
 import tiktoken
+import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
 
@@ -46,20 +47,24 @@ def create_dataloader_v1(txt, batch_size=4, max_length=256,
     return dataloader
 
 
-class SPAMSmsDataset(Dataset):
-    def __init__(self, dataframe, tokenizer, max_length=128):
+class SpamSMSDataset(Dataset):
+    def __init__(self, smsmessages, tokenizer, max_length=120, pad_token_id=50256):
         """
         Args:
             dataframe (pd.DataFrame): The dataset containing 'Label' and 'Text' columns.
             tokenizer (tiktoken.Encoding): A pre-initialized tiktoken tokenizer.
             max_length (int): The maximum sequence length for tokenization.
         """
-        self.data = dataframe
+        self.data = pd.read_csv(smsmessages, sep ="\t", header = None, names=["Label", "Text"])
         self.tokenizer = tokenizer
         self.max_length = max_length
+        self.pad_token_id = pad_token_id
         # Convert labels to numerical values (spam: 1, ham: 0)
-        self.labels = self.data['Label'].map({'ham': 0, 'spam': 1}).values
         self.texts = self.data['Text'].values
+        self._map_labels()
+
+    def _map_labels(self):
+        self.labels = self.data['Label'].map({'ham': 0, 'spam': 1}).values
 
     def __len__(self):
         return len(self.data)
@@ -76,9 +81,7 @@ class SPAMSmsDataset(Dataset):
         if len(tokens) > self.max_length:
             tokens = tokens[:self.max_length]
         else:
-            tokens = tokens + [0] * (self.max_length - len(tokens))  # Padding with 0s
+            tokens = tokens + [self.pad_token_id] * (self.max_length - len(tokens))  # Padding with 0s
 
         # Convert to PyTorch tensor
-        input_ids = torch.tensor(tokens, dtype=torch.long)
-
-        return (input_ids, torch.tensor(label, dtype=torch.long))
+        return (torch.tensor(tokens, dtype=torch.long), torch.tensor(label, dtype=torch.long))
