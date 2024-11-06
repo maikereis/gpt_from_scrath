@@ -1,5 +1,5 @@
 import torch
-from utils import generate_and_print_sample
+from .utils import generate_and_print_sample
 from torcheval.metrics.functional import binary_precision
 
 def calc_loss_batch(input_batch, target_batch, model, device):
